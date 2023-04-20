@@ -2,17 +2,17 @@ package com.example.ble
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.ParcelUuid
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,10 +21,10 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-
     private lateinit var texto: TextView
+    private lateinit var boton: Button
     private lateinit var bluetoothAdapter: BluetoothAdapter
-
+    private val REQUEST_ENABLE_BT = 1
     private val scanCallback = object : ScanCallback() {
         @SuppressLint("MissingPermission", "SetTextI18n")
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
@@ -33,12 +33,12 @@ class MainActivity : AppCompatActivity() {
                 val deviceName = device.name ?: "Desconocido"
                 val address = device.address
                 val rssi = it.rssi
-                texto.text = "$deviceName ($address) - RSSI: $rssi"
+                texto.text = "$deviceName ($address) - RSSI: $rssi\n"
             }
         }
     }
 
-    @SuppressLint("ObsoleteSdkInt")
+    @SuppressLint("ObsoleteSdkInt", "MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -46,13 +46,6 @@ class MainActivity : AppCompatActivity() {
         // Inicializar BluetoothAdapter
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = bluetoothManager.adapter
-
-        // Verificar si el dispositivo admite Bluetooth
-        if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Este dispositivo no admite Bluetooth", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
 
         // Comprobar si el dispositivo es compatible con Bluetooth Low Energy
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -63,7 +56,7 @@ class MainActivity : AppCompatActivity() {
             ).show()
             finish()
         }
-
+        requestEnableBluetooth()
         // Solicitar permisos de Bluetooth en tiempo de ejecución (si es necesario)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val permissions = arrayOf(
@@ -81,9 +74,15 @@ class MainActivity : AppCompatActivity() {
             if (permissionsToRequest.isNotEmpty()) {
                 ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 0)
             } else {
-                startScanning()
+                return
             }
         } else {
+            return
+        }
+        boton = findViewById(R.id.btnScan)
+        texto = findViewById(R.id.Dispositivos)
+
+        boton.setOnClickListener {
             startScanning()
         }
     }
@@ -96,14 +95,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("MissingPermission")
     private fun startScanning() {
         val scanner = bluetoothAdapter.bluetoothLeScanner
-        val scanFilters = listOf(
-            ScanFilter.Builder()
-                .setServiceUuid(ParcelUuid.fromString("0000180D-0000-1000-8000-00805f9b34fb"))
-                .build()
-        )
-        val scanSettings =
-            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
-        scanner.startScan(scanFilters, scanSettings, scanCallback)
+        scanner.startScan(scanCallback)
     }
 
     @SuppressLint("MissingPermission")
@@ -117,7 +109,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 0) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                startScanning()
+                return
             } else {
                 Toast.makeText(
                     this,
@@ -128,4 +120,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
+    @SuppressLint("MissingPermission")
+    private fun requestEnableBluetooth() {
+        if (!bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_ENABLE_BT) {
+            if (resultCode == Activity.RESULT_OK) {
+                return
+            } else {
+                Toast.makeText(
+                    this,
+                    "El Bluetooth no ha sido habilitado, no se puede escanear dispositivos cercanos",
+                    Toast.LENGTH_SHORT
+                ).show()
+                finish()
+            }
+        }
+    }
+
 }
