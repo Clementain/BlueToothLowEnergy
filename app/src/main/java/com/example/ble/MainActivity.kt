@@ -5,8 +5,11 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,6 +26,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var texto: TextView
     private lateinit var boton: Button
+    private lateinit var bluetoothLeScanner: BluetoothLeScanner
     private lateinit var bluetoothAdapter: BluetoothAdapter
     private val REQUEST_ENABLE_BT = 1
     private val scanCallback = object : ScanCallback() {
@@ -43,12 +47,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Inicializar BluetoothAdapter
+        // Inicializar BluetoothLeScanner
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothAdapter = bluetoothManager.adapter
+        bluetoothLeScanner = bluetoothManager.adapter.bluetoothLeScanner
 
         // Comprobar si el dispositivo es compatible con Bluetooth Low Energy
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || bluetoothAdapter.bluetoothLeScanner == null) {
             Toast.makeText(
                 this,
                 "Bluetooth Low Energy no está soportando en este dispositivo",
@@ -94,13 +98,15 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun startScanning() {
-        val scanner = bluetoothAdapter.bluetoothLeScanner
-        scanner.startScan(scanCallback)
+        val scanFilter = ScanFilter.Builder().build()
+        val scanSettings =
+            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+        bluetoothLeScanner.startScan(listOf(scanFilter), scanSettings, scanCallback)
     }
 
     @SuppressLint("MissingPermission")
     private fun stopScanning() {
-        bluetoothAdapter.bluetoothLeScanner.stopScan(scanCallback)
+        bluetoothLeScanner.stopScan(scanCallback)
     }
 
     override fun onRequestPermissionsResult(
