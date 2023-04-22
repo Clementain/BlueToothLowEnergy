@@ -80,8 +80,8 @@ class MainActivity : AppCompatActivity() {
                 deviceScanActivity.scanLeDevice(true)
                 val discoveredDevices = deviceScanActivity.getDiscoveredDevices()
                 val deviceText =
-                    discoveredDevices.joinToString(separator = "\n") { (macAddress, rssi) ->
-                        "MAC: $macAddress, RSSI: $rssi"
+                    discoveredDevices.joinToString(separator = "\n") { (macAddress, rssi, name) ->
+                        "MAC: $macAddress, RSSI: $rssi, Nombre: $name"
                     }
                 dispositivos.text = deviceText
                 deviceScanActivity.resetDiscoveredDevices()
