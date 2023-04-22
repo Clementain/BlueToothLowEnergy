@@ -9,8 +9,10 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Bundle
 import android.os.Handler
+import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -21,6 +23,7 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
     private val PERMISSION_REQUEST_CODE = 100
     private val REQUEST_ENABLE_BT = 1
+    private val REQUEST_ENABLE_LOCATION = 2
     private lateinit var boton: Button
     private lateinit var dispositivos: TextView
     private lateinit var deviceScanActivity: DeviceScanActivity
@@ -28,7 +31,6 @@ class MainActivity : AppCompatActivity() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
     }
-
     private val BluetoothAdapter.isDisabled: Boolean
         get() = !isEnabled
 
@@ -60,6 +62,12 @@ class MainActivity : AppCompatActivity() {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
         }
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        if (!locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            val enableLocationIntent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+            startActivityForResult(enableLocationIntent, REQUEST_ENABLE_LOCATION)
+        }
         boton = findViewById(R.id.btnScan)
         dispositivos = findViewById(R.id.Dispositivos)
 
@@ -71,7 +79,13 @@ class MainActivity : AppCompatActivity() {
             } else {
                 deviceScanActivity.scanLeDevice(true)
                 val discoveredDevices = deviceScanActivity.getDiscoveredDevices()
-                dispositivos.text = discoveredDevices.joinToString(separator = "\n")
+                val deviceText =
+                    discoveredDevices.joinToString(separator = "\n") { (macAddress, rssi) ->
+                        "MAC: $macAddress, RSSI: $rssi"
+                    }
+                dispositivos.text = deviceText
+                deviceScanActivity.resetDiscoveredDevices()
+
             }
 
 
@@ -82,15 +96,31 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == REQUEST_ENABLE_BT) {
-            if (resultCode == RESULT_OK) {
-                // Bluetooth was successfully enabled
-            } else {
-                // The user declined to enable Bluetooth
-                Toast.makeText(
-                    this, "Bluetooth must be enabled to use this app", Toast.LENGTH_SHORT
-                ).show()
-                finish()
+        when (requestCode) {
+            REQUEST_ENABLE_BT -> {
+                if (resultCode == RESULT_OK) {
+                    // Bluetooth was successfully enabled
+                    return
+                } else {
+                    // The user declined to enable Bluetooth
+                    Toast.makeText(
+                        this, "Bluetooth must be enabled to use this app", Toast.LENGTH_SHORT
+                    ).show()
+                    finish()
+                }
+            }
+
+            REQUEST_ENABLE_LOCATION -> {
+                val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                    return
+                } else {
+                    // The user declined to enable Location
+                    Toast.makeText(
+                        this, "Location must be enabled to use this app", Toast.LENGTH_SHORT
+                    ).show()
+                    finish()
+                }
             }
         }
     }

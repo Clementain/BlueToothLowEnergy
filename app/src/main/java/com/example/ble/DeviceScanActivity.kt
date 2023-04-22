@@ -19,19 +19,20 @@ class DeviceScanActivity(
 ) : ListActivity() {
     private var mScanning: Boolean = false
     private val leScanCallback = object : BluetoothAdapter.LeScanCallback {
-        val devices = mutableListOf<Pair<String, Int>>()
+        var devices = mutableListOf<Pair<String, Int>>()
 
         @SuppressLint("MissingPermission")
         override fun onLeScan(device: BluetoothDevice?, rssi: Int, scanRecord: ByteArray?) {
             // Handle discovered devices here
             device?.let { btDevice ->
-                val name = btDevice.name ?: "unknown"
-                val deviceInfo = Pair(name, rssi)
+                val macAddress = btDevice.address // Obtener la dirección MAC del dispositivo
+                val deviceInfo = Pair(macAddress, rssi) // Usar la dirección MAC en lugar del nombre
                 if (!devices.contains(deviceInfo)) {
                     devices.add(deviceInfo)
                 }
             }
         }
+
     }
 
 
@@ -54,7 +55,13 @@ class DeviceScanActivity(
             }
         }
     }
+
     fun getDiscoveredDevices(): List<Pair<String, Int>> {
         return leScanCallback.devices.toList()
+    }
+
+    fun resetDiscoveredDevices() {
+        leScanCallback.devices.clear()
+
     }
 }
